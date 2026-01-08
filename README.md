@@ -221,3 +221,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 Built for the self-hosted/homelab community. Optimized for Raspberry Pi and resource-constrained environments.
+# homelab-backup-monitor

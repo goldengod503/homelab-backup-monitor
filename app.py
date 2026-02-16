@@ -149,8 +149,10 @@ def import_metrics() -> int:
                 error_category = None
                 error_message = None
                 if not success:
-                    error_category = data.get('error_category', 'unknown')
-                    error_message = data.get('error_message')
+                    error_category = data.get('error_category') or (
+                        f"{data['last_phase']}_failed" if data.get('last_phase') else 'unknown'
+                    )
+                    error_message = data.get('error_message') or data.get('error')
 
                 c.execute('''
                     INSERT OR IGNORE INTO backups

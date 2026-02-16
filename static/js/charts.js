@@ -15,6 +15,7 @@ const categoryColors = {
     timeout: '#8b5cf6',
     permission_denied: '#ec4899',
     snapshot_failed: '#f97316',
+    archive_failed: '#fb923c',
     upload_failed: '#06b6d4',
     unknown: '#64748b'
 };
@@ -25,6 +26,7 @@ const categoryLabels = {
     timeout: 'Timeout',
     permission_denied: 'Permission Denied',
     snapshot_failed: 'Snapshot Failed',
+    archive_failed: 'Archive Failed',
     upload_failed: 'Upload Failed',
     unknown: 'Unknown'
 };

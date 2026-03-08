@@ -17,6 +17,8 @@ const categoryColors = {
     snapshot_failed: '#f97316',
     archive_failed: '#fb923c',
     upload_failed: '#06b6d4',
+    prune_remote_failed: '#a855f7',
+    cleanup_failed: '#d946ef',
     unknown: '#64748b'
 };
 
@@ -28,6 +30,8 @@ const categoryLabels = {
     snapshot_failed: 'Snapshot Failed',
     archive_failed: 'Archive Failed',
     upload_failed: 'Upload Failed',
+    prune_remote_failed: 'Prune Failed',
+    cleanup_failed: 'Cleanup Failed',
     unknown: 'Unknown'
 };
 
@@ -210,7 +214,50 @@ async function loadFailureTrends() {
     });
 }
 
+async function loadPruneStats() {
+    const container = document.getElementById('pruneStats');
+    if (!container) return;
+
+    const response = await fetch('/api/prune-stats');
+    const data = await response.json();
+
+    const lp = data.last_prune;
+    const totals = data.totals_30d;
+
+    if (!lp) {
+        container.innerHTML = '<div class="empty-state">No prune activity yet</div>';
+        return;
+    }
+
+    const date = new Date(lp.timestamp).toLocaleString();
+    const hasErrors = lp.errors > 0 || totals.errors > 0;
+
+    let html = '<div class="prune-detail">';
+    html += `<div class="prune-row"><span class="prune-label">Last prune</span><span>${date}</span></div>`;
+    html += `<div class="prune-row"><span class="prune-label">Deleted</span><span>${lp.deleted} backup${lp.deleted !== 1 ? 's' : ''}</span></div>`;
+    if (lp.skipped > 0) {
+        html += `<div class="prune-row"><span class="prune-label">Skipped</span><span class="prune-warn">${lp.skipped}</span></div>`;
+    }
+    if (lp.errors > 0) {
+        html += `<div class="prune-row"><span class="prune-label">Errors</span><span class="prune-error">${lp.errors}</span></div>`;
+    }
+    html += `<div class="prune-row"><span class="prune-label">Duration</span><span>${lp.duration}s</span></div>`;
+    html += '</div>';
+
+    // 30-day totals
+    html += '<div class="prune-totals">';
+    html += `<span class="prune-label">30-day totals:</span> `;
+    html += `${totals.deleted} deleted`;
+    if (totals.errors > 0) {
+        html += ` <span class="prune-error">| ${totals.errors} errors</span>`;
+    }
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
 // Load charts when page loads
 loadCharts();
 loadFailures();
 loadFailureTrends();
+loadPruneStats();

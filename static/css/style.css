@@ -140,6 +140,43 @@ h1 {
     color: #64748b;
 }
 
+.prune-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.prune-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #334155;
+    font-size: 0.9rem;
+}
+
+.prune-label {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.prune-warn {
+    color: #f59e0b;
+}
+
+.prune-error {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.prune-totals {
+    padding-top: 8px;
+    font-size: 0.85rem;
+    color: #94a3b8;
+}
+
 @media (max-width: 768px) {
     .stats-grid {
         grid-template-columns: 1fr;

@@ -103,7 +103,11 @@ def init_db():
         print("Migrating DB: adding column backups.volume_bytes")
         c.execute('ALTER TABLE backups ADD COLUMN volume_bytes INTEGER DEFAULT 0')
         conn.commit()
-    for col_def in ['error_category TEXT', 'error_message TEXT']:
+    for col_def in ['error_category TEXT', 'error_message TEXT',
+                     'duration_prune INTEGER DEFAULT 0',
+                     'prune_deleted INTEGER DEFAULT 0',
+                     'prune_skipped INTEGER DEFAULT 0',
+                     'prune_errors INTEGER DEFAULT 0']:
         col_name = col_def.split()[0]
         if not _col_exists(conn, "backups", col_name):
             print(f"Migrating DB: adding column backups.{col_name}")
@@ -145,6 +149,12 @@ def import_metrics() -> int:
                 duration_upload = int(data.get('duration_upload', 0) or 0)
                 volume_bytes = int(data.get('volume_bytes', 0) or 0)
 
+                # Prune metrics
+                duration_prune = int(data.get('duration_prune', 0) or 0)
+                prune_deleted = int(data.get('prune_deleted', 0) or 0)
+                prune_skipped = int(data.get('prune_skipped', 0) or 0)
+                prune_errors = int(data.get('prune_errors', 0) or 0)
+
                 # Error tracking (only meaningful when success=false)
                 error_category = None
                 error_message = None
@@ -158,8 +168,9 @@ def import_metrics() -> int:
                     INSERT OR IGNORE INTO backups
                     (timestamp, backup_id, success, duration_total, duration_snapshot,
                      duration_archive, duration_volumes, duration_upload, size_bytes,
-                     volume_bytes, error_category, error_message)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     volume_bytes, error_category, error_message,
+                     duration_prune, prune_deleted, prune_skipped, prune_errors)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     ts,
                     backup_id,
@@ -172,7 +183,11 @@ def import_metrics() -> int:
                     size_bytes,
                     volume_bytes,
                     error_category,
-                    error_message
+                    error_message,
+                    duration_prune,
+                    prune_deleted,
+                    prune_skipped,
+                    prune_errors
                 ))
 
                 if c.rowcount == 1:
@@ -294,7 +309,8 @@ def api_metrics():
     c.execute('''
         SELECT timestamp, backup_id, success, duration_total, duration_snapshot,
                duration_archive, duration_volumes, duration_upload,
-               size_bytes, volume_bytes, error_category, error_message
+               size_bytes, volume_bytes, error_category, error_message,
+               duration_prune, prune_deleted, prune_skipped, prune_errors
         FROM backups
         ORDER BY timestamp DESC
         LIMIT 30
@@ -335,7 +351,11 @@ def api_metrics():
             'upload_mb_per_sec': round(upload_mb_s, 2),
             'volumes_mb_per_sec': round(volumes_mb_s, 2),
             'error_category': row[10],
-            'error_message': row[11]
+            'error_message': row[11],
+            'duration_prune': row[12] or 0,
+            'prune_deleted': row[13] or 0,
+            'prune_skipped': row[14] or 0,
+            'prune_errors': row[15] or 0
         })
 
     return jsonify(metrics)
@@ -390,6 +410,55 @@ def api_failure_trends():
 
     trends = [{'week': row[0], 'error_category': row[1] or 'unknown', 'count': row[2]} for row in rows]
     return jsonify(trends)
+
+@app.route('/api/prune-stats')
+def api_prune_stats():
+    """API endpoint for prune/retention stats."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Last backup that actually pruned something (deleted > 0)
+    c.execute('''
+        SELECT timestamp, backup_id, prune_deleted, prune_skipped, prune_errors, duration_prune
+        FROM backups
+        WHERE prune_deleted > 0 OR prune_errors > 0
+        ORDER BY timestamp DESC
+        LIMIT 1
+    ''')
+    last_prune_row = c.fetchone()
+
+    # Totals over last 30 days
+    thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat()
+    c.execute('''
+        SELECT
+            SUM(prune_deleted) as total_deleted,
+            SUM(prune_skipped) as total_skipped,
+            SUM(prune_errors) as total_errors
+        FROM backups
+        WHERE timestamp >= ?
+    ''', (thirty_days_ago,))
+    totals_row = c.fetchone()
+    conn.close()
+
+    last_prune = None
+    if last_prune_row:
+        last_prune = {
+            'timestamp': last_prune_row[0],
+            'backup_id': last_prune_row[1],
+            'deleted': last_prune_row[2] or 0,
+            'skipped': last_prune_row[3] or 0,
+            'errors': last_prune_row[4] or 0,
+            'duration': last_prune_row[5] or 0
+        }
+
+    return jsonify({
+        'last_prune': last_prune,
+        'totals_30d': {
+            'deleted': totals_row[0] or 0 if totals_row else 0,
+            'skipped': totals_row[1] or 0 if totals_row else 0,
+            'errors': totals_row[2] or 0 if totals_row else 0
+        }
+    })
 
 @app.route('/api/import', methods=['POST'])
 def api_import():

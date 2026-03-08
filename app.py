@@ -386,30 +386,6 @@ def api_failures():
 
     return jsonify(failures)
 
-@app.route('/api/failure-trends')
-def api_failure_trends():
-    """API endpoint for daily failure status (0 = all OK, 1 = failure occurred)."""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat()
-
-    c.execute('''
-        SELECT
-            date(timestamp) as day,
-            MAX(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed
-        FROM backups
-        WHERE timestamp >= ?
-        GROUP BY day
-        ORDER BY day
-    ''', (thirty_days_ago,))
-
-    rows = c.fetchall()
-    conn.close()
-
-    trends = [{'date': row[0], 'failed': row[1]} for row in rows]
-    return jsonify(trends)
-
 @app.route('/api/prune-stats')
 def api_prune_stats():
     """API endpoint for prune/retention stats."""

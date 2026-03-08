@@ -174,54 +174,6 @@ async function loadFailures() {
     container.innerHTML = html;
 }
 
-async function loadFailureTrends() {
-    const response = await fetch('/api/failure-trends');
-    const trends = await response.json();
-
-    if (trends.length === 0) return;
-
-    new Chart(document.getElementById('failureChart'), {
-        type: 'line',
-        data: {
-            labels: trends.map(t => new Date(t.date).toLocaleDateString()),
-            datasets: [{
-                label: 'Failure',
-                data: trends.map(t => t.failed),
-                borderColor: chartColors.danger,
-                backgroundColor: chartColors.danger + '20',
-                tension: 0,
-                fill: true,
-                pointRadius: 4,
-                pointBackgroundColor: trends.map(t => t.failed ? chartColors.danger : chartColors.success),
-                stepped: true
-            }]
-        },
-        options: {
-            ...chartDefaults,
-            scales: {
-                ...chartDefaults.scales,
-                y: {
-                    ...chartDefaults.scales.y,
-                    min: 0,
-                    max: 1,
-                    ticks: {
-                        ...chartDefaults.scales.y.ticks,
-                        stepSize: 1,
-                        callback: v => v === 0 ? 'OK' : 'Failed'
-                    }
-                }
-            },
-            plugins: {
-                ...chartDefaults.plugins,
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ctx.raw === 0 ? 'All backups OK' : 'Failure occurred'
-                    }
-                }
-            }
-        }
-    });
-}
 
 async function loadPruneStats() {
     const container = document.getElementById('pruneStats');
@@ -268,5 +220,4 @@ async function loadPruneStats() {
 // Load charts when page loads
 loadCharts();
 loadFailures();
-loadFailureTrends();
 loadPruneStats();

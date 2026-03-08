@@ -180,35 +180,44 @@ async function loadFailureTrends() {
 
     if (trends.length === 0) return;
 
-    // Group by week and category
-    const weeks = [...new Set(trends.map(t => t.week))];
-    const categories = [...new Set(trends.map(t => t.error_category))];
-
-    const datasets = categories.map(cat => {
-        const color = categoryColors[cat] || categoryColors.unknown;
-        const label = categoryLabels[cat] || cat;
-        return {
-            label: label,
-            data: weeks.map(w => {
-                const match = trends.find(t => t.week === w && t.error_category === cat);
-                return match ? match.count : 0;
-            }),
-            backgroundColor: color
-        };
-    });
-
     new Chart(document.getElementById('failureChart'), {
-        type: 'bar',
+        type: 'line',
         data: {
-            labels: weeks.map(w => 'Week ' + w.split('-')[1]),
-            datasets: datasets
+            labels: trends.map(t => new Date(t.date).toLocaleDateString()),
+            datasets: [{
+                label: 'Failure',
+                data: trends.map(t => t.failed),
+                borderColor: chartColors.danger,
+                backgroundColor: chartColors.danger + '20',
+                tension: 0,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: trends.map(t => t.failed ? chartColors.danger : chartColors.success),
+                stepped: true
+            }]
         },
         options: {
             ...chartDefaults,
             scales: {
                 ...chartDefaults.scales,
-                x: { ...chartDefaults.scales.x, stacked: true },
-                y: { ...chartDefaults.scales.y, stacked: true, beginAtZero: true }
+                y: {
+                    ...chartDefaults.scales.y,
+                    min: 0,
+                    max: 1,
+                    ticks: {
+                        ...chartDefaults.scales.y.ticks,
+                        stepSize: 1,
+                        callback: v => v === 0 ? 'OK' : 'Failed'
+                    }
+                }
+            },
+            plugins: {
+                ...chartDefaults.plugins,
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ctx.raw === 0 ? 'All backups OK' : 'Failure occurred'
+                    }
+                }
             }
         }
     });

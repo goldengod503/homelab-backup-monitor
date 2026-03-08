@@ -388,7 +388,7 @@ def api_failures():
 
 @app.route('/api/failure-trends')
 def api_failure_trends():
-    """API endpoint for failure trends by category per week."""
+    """API endpoint for daily failure status (0 = all OK, 1 = failure occurred)."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
@@ -396,19 +396,18 @@ def api_failure_trends():
 
     c.execute('''
         SELECT
-            strftime('%Y-%W', timestamp) as week,
-            error_category,
-            COUNT(*) as count
+            date(timestamp) as day,
+            MAX(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed
         FROM backups
-        WHERE success = 0 AND timestamp >= ?
-        GROUP BY week, error_category
-        ORDER BY week
+        WHERE timestamp >= ?
+        GROUP BY day
+        ORDER BY day
     ''', (thirty_days_ago,))
 
     rows = c.fetchall()
     conn.close()
 
-    trends = [{'week': row[0], 'error_category': row[1] or 'unknown', 'count': row[2]} for row in rows]
+    trends = [{'date': row[0], 'failed': row[1]} for row in rows]
     return jsonify(trends)
 
 @app.route('/api/prune-stats')
